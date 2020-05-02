@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/hasan/Desktop/COMP304/PROJECT/COMP304-Air-Traffic-Control/main.cpp
+iostream
+-
+stdio.h
+-
+stdlib.h
+-
+pthread.h
+-
+queue
+-
+
