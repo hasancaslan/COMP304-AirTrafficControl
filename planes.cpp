@@ -55,7 +55,7 @@ int pthread_sleep(int seconds);
 int main(int argc, char *argv[])
 {
     // Default values for variables.
-    simulation_time = 50;
+    simulation_time = 200;
     sleep_time = 1;
     probabilty = 50;
     order = 0;
@@ -73,15 +73,15 @@ int main(int argc, char *argv[])
     {
         if (strcmp(argv[i], "-s") == 0) // Get simulation time if entered.
         {
-            simulation_time = atoi(argv[i]);
+            simulation_time = atoi(argv[i+1]);
         }
         else if (strcmp(argv[i], "-p") == 0) // Get probability if entered.
         {
-            probabilty = atoi(argv[i]) * 100;
+            probabilty = atof(argv[i+1]) * 100;
         }
         else if (strcmp(argv[i], "-n") == 0) // Starting from nth secs to terminal.
         {
-            order = atoi(argv[i]);
+            order = atoi(argv[i+1]);
         }
     }
 
@@ -97,6 +97,14 @@ int main(int argc, char *argv[])
     // Creating air traffic control thread.
     pthread_t air_traffic_control_thread;
     pthread_create(&air_traffic_control_thread, NULL, air_traffic_control, (void *)NULL);
+
+    printf("Plane %d is ready to land.\n", landing_id);
+    pthread_create(&threads[landing_id], NULL, landing, (void *)(intptr_t)landing_id);
+    landing_id += 2;
+
+    printf("Plane %d is ready to depart.\n", departure_id);
+    pthread_create(&threads[departure_id], NULL, departing, (void *)(intptr_t)departure_id);
+    departure_id += 2;
 
     // Main Loop for simulation.
     while (now.tv_sec <= init.tv_sec + simulation_time)
@@ -219,10 +227,10 @@ void *air_traffic_control(void *atc)
         }
 
             // Landing
-        else if (!landing_queue.empty()                                                                                                // No more planes is waiting to land.
+        else if (!landing_queue.empty()                                                                                            // No more planes is waiting to land.
                  && departure_queue.size() < 5                                                                                     // 5 planes or more lined up to take off.
-                 && !(!departure_queue.empty() && ((now.tv_sec - departure_queue.front().request_time.tv_sec) >= 10 * sleep_time)) // Max waiting time.
-                 || landing_queue.size() > landing_queue.size()                                                                        // Prevents landing starvation
+                 && !(!departure_queue.empty() && ((now.tv_sec - departure_queue.front().request_time.tv_sec) >= 20 * sleep_time)) // Max waiting time.
+                 || landing_queue.size() > departure_queue.size()                                                                  // Prevents landing starvation
                 )
         {
             plane p = landing_queue.front();
