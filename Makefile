@@ -1,3 +1,3 @@
-planesmake: planes.c
-	gcc -o planes planes.c -lpthread
+planesmake: planes.cpp
+	g++ -o planes planes.cpp -lpthread
 	./planes
