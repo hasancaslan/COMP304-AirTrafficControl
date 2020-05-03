@@ -1,1 +1,0 @@
-/usr/bin/c++  -g   CMakeFiles/COMP304_Air_Traffic_Control.dir/main.cpp.o  -o COMP304_Air_Traffic_Control 

@@ -1,3 +1,0 @@
-/home/hasan/Desktop/COMP304/PROJECT/COMP304-Air-Traffic-Control/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/hasan/Desktop/COMP304/PROJECT/COMP304-Air-Traffic-Control/cmake-build-debug/CMakeFiles/COMP304_Air_Traffic_Control.dir
-/home/hasan/Desktop/COMP304/PROJECT/COMP304-Air-Traffic-Control/cmake-build-debug/CMakeFiles/edit_cache.dir

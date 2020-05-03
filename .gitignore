@@ -53,8 +53,7 @@ dkms.conf
 
 *.l
 *.out
-*.idea
+.idea
 */CMakeLists.txt
-**/.idea
 **/cmake-build_debug
 /planes
