@@ -3,7 +3,7 @@
 # Project 2 
 
 ### I've implemented all parts of the project. 
-However there could be a litte bug in my project. As time goes by, planes are accumulating in queue and in somewhere when a plane try to take off program locked. Because of this lock my log file cannot be created at the end but you can find my log in the console. 
+However there could be a litte bug in my project.At the and of the simulation, somehow my program is locked. Because of lock, sometimes my log file cannot be created at the end but you can find my log in the console. 
 
 I have included a Makefile with my project.
 It can be used to compile the code with the command in directory: ``` make planesmake ```
@@ -27,5 +27,7 @@ When the each plane therad terminates, related thread  returns with pthread_exit
 
 I've used 1 mutex lock to make sure there is no collusion in the runway and protect data.
 
-### We created two log samples with using
+### I've created two log files
+One for plane data and one for realtime air traffic data.
+
 
