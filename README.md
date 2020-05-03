@@ -3,15 +3,15 @@
 # Project 2 
 
 ### I've implemented all parts of the project. 
-However there is a litte bug in my project. As time goes by, planes are accumulating in queue and in somewhere when a plane try to take off program locked. Because of this lock my log file cannot be created at the end bu you can find my lod in the console. 
+However there could be a litte bug in my project. As time goes by, planes are accumulating in queue and in somewhere when a plane try to take off program locked. Because of this lock my log file cannot be created at the end but you can find my log in the console. 
 
 I have included a Makefile with my project.
-It can be used to compile the code with the command in directory: ``` make ```
+It can be used to compile the code with the command in directory: ``` make planesmake ```
 To run the program with predefined arguments, you can use "make run"
 To run the program with custom arguments, specify them in the following format:
 
 ``` 
-./planes.o -s 100 -p 50
+./planes.o -s 100 -p 0.5 -n 0
 ```
 
 Our program starts with main, creates air traffic control thread and landing or departing thread for each plane.

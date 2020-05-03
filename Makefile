@@ -1,3 +1,2 @@
 planesmake: planes.cpp
-	g++ -o planes planes.cpp -lpthread
-	./planes
+	g++ -o planes.o planes.cpp -lpthread
