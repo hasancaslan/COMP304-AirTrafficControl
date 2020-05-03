@@ -52,7 +52,7 @@ int pthread_sleep(int seconds);
 int main(int argc, char *argv[])
 {
     // Default values for variables.
-    simulation_time = 100;
+    simulation_time = 60;
     sleep_time = 1;
     probabilty = 50;
     order = 0;
