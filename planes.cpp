@@ -1,36 +1,50 @@
 #include <iostream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cstdint>
+#include <cstdarg>
 #include <pthread.h>
 #include <queue>
-#include <time.h>
+#include <ctime>
 #include <sys/time.h>
 
-typedef unsigned long planeid_t;
+typedef unsigned long plane_id_t;
+
+enum plane_status_t
+{
+    LANDING = 'L',
+    DEPARTING = 'D',
+    EMERGENCY = 'E',
+    UNKNOWN
+};
+
 typedef struct plane
 {
-    planeid_t id;
-    char status;
-    struct timeval rt;
-    struct timeval rnt;
+    plane_id_t id;
+    plane_status_t status;
+    struct timeval request_time;
+    struct timeval runway_time;
+    //pthread_cond_t pcond;
+    //pthread_mutex_t plock;
 } plane;
+
+FILE *planes_log;
 
 pthread_cond_t pcond_landing, pcond_departure;
 pthread_mutex_t lock;
 
-int simulation_time, sleep_time, count, probabilty, order;
+int simulation_time, sleep_time, probabilty, order;
 struct timeval now, init;
 
 std::queue<plane> landing_queue, departure_queue, emergency_queue;
-std::queue<planeid_t> landing_queue_strs, departure_queue_strs;
+std::queue<plane_id_t> landing_queue_str, departure_queue_str;
 
 void *landing(void *id);
 
-void *departure(void *id);
+void *departing(void *id);
 
-void *action(void *act);
+void *air_traffic_control(void *atc);
 
 void print_queues();
 
@@ -38,18 +52,15 @@ void destroy_threads();
 
 int pthread_sleep(int seconds);
 
-inline void log_print(plane p);
-
-inline void log_title();
-
 int main(int argc, char *argv[])
 {
     // Default values for variables.
-    simulation_time = 200;
-    sleep_time = 2;
+    simulation_time = 50;
+    sleep_time = 1;
     probabilty = 50;
     order = 0;
-    id_t plane_id = 0;
+    id_t landing_id = 0;
+    id_t departure_id = 1;
 
     // Initializations
     pthread_cond_init(&pcond_landing, NULL);
@@ -68,37 +79,41 @@ int main(int argc, char *argv[])
         {
             probabilty = atoi(argv[i]) * 100;
         }
+        else if (strcmp(argv[i], "-n") == 0) // Starting from nth secs to terminal.
+        {
+            order = atoi(argv[i]);
+        }
     }
+
+    // Creating log file.
+    char control_log_file[21];
+    snprintf(control_log_file, 21, "%02ld-planes.log", init.tv_sec);
+    planes_log = fopen(control_log_file, "w");
 
     // Keeping track of threads.
     int thread_count = simulation_time / sleep_time;
     pthread_t *threads = new pthread_t[thread_count];
 
-    // Creating main thread.
-    pthread_t main_thread;
-    pthread_create(&main_thread, NULL, action, (void *)NULL);
+    // Creating air traffic control thread.
+    pthread_t air_traffic_control_thread;
+    pthread_create(&air_traffic_control_thread, NULL, air_traffic_control, (void *)NULL);
 
     // Main Loop for simulation.
     while (now.tv_sec <= init.tv_sec + simulation_time)
     {
-        printf("Current time: %d\n", now.tv_sec);
-
         // Creating random probability to decide landing or departure of the plane.
         srand(time(NULL));
         int random_probabilty = rand() % 100;
-
-        // ??????????????????????????????????
-        if ((now.tv_sec - init.tv_sec) % (2 * sleep_time) == 0)
-            count++;
 
         // Emergency Landing
         if ((now.tv_sec - init.tv_sec) / sleep_time == 40)
         {
             pthread_mutex_lock(&lock);
             plane p;
-            p.rt = now;
+            p.status = EMERGENCY;
+            p.request_time = now;
             emergency_queue.push(p);
-            plane_id++;
+            landing_id += 2;
 
             if ((now.tv_sec - init.tv_sec) >= order)
                 print_queues();
@@ -106,20 +121,20 @@ int main(int argc, char *argv[])
             pthread_mutex_unlock(&lock);
         }
 
-        // Landing
+            // Landing
         else if (random_probabilty <= probabilty)
         {
-            printf("Plane %d is landing.\n", plane_id);
-            pthread_create(&threads[plane_id], NULL, landing, (void *)(intptr_t)plane_id);
-            plane_id++;
+            printf("Plane %d is ready to land.\n", landing_id);
+            pthread_create(&threads[landing_id], NULL, landing, (void *)(intptr_t)landing_id);
+            landing_id += 2;
         }
 
-        // Departing
+            // Departing
         else if (random_probabilty <= 100)
         {
-            printf("Plane %d is departing.\n", plane_id);
-            pthread_create(&threads[plane_id], NULL, departure, (void *)(intptr_t)plane_id);
-            plane_id++;
+            printf("Plane %d is ready to depart.\n", departure_id);
+            pthread_create(&threads[departure_id], NULL, departing, (void *)(intptr_t)departure_id);
+            departure_id += 2;
         }
         else
         {
@@ -135,13 +150,61 @@ int main(int argc, char *argv[])
     }
 
     destroy_threads();
+    fclose(planes_log);
     delete[] threads;
     return 0;
 }
 
-void *action(void *act)
+// Function for writing logs to file.
+void log_file(const char *format, ...)
 {
-    log_title();
+    va_list args;
+    va_start(args, format);
+    vfprintf(planes_log, format, args);
+    va_end(args);
+}
+
+// Logs column's titles.
+void log_column_titles()
+{
+    log_file("%20s %20s %20s %20s %20s\n%s\n", "PlaneID", "Status",
+             "Request Time", "Runway Time", "Turnaround Time",
+             "___________________________________________________________________________________________________________________________");
+}
+
+// Logs planes data to file with specified format.
+void log_plane(plane p)
+{
+    log_file("%20lu %20c %20lu %20lu %20lu\n", p.id, p.status, p.request_time.tv_sec - init.tv_sec,
+             p.runway_time.tv_sec - init.tv_sec, p.runway_time.tv_sec - p.request_time.tv_sec);
+}
+
+// Prints plane id's in landing and departure queues.
+void print_queues()
+{
+    printf("\nPlanes on the Air: ");
+    for (int i = 0; i < landing_queue.size(); i++)
+    {
+        plane_id_t id = landing_queue_str.front();
+        printf("%lu - ", id);
+        landing_queue_str.pop();
+        landing_queue_str.push(id);
+    }
+
+    printf("\nPlanes on the Ground: ");
+    for (int i = 0; i < departure_queue.size(); i++)
+    {
+        plane_id_t id = departure_queue_str.front();
+        printf("%lu - ", id);
+        departure_queue_str.pop();
+        departure_queue_str.push(id);
+    }
+    printf("\n");
+}
+
+void *air_traffic_control(void *atc)
+{
+    log_column_titles();
     while (now.tv_sec <= init.tv_sec + simulation_time)
     {
         pthread_mutex_lock(&lock);
@@ -149,31 +212,33 @@ void *action(void *act)
         // Emergency Landing
         if (!emergency_queue.empty())
         {
-            printf("Emergency landing has been occured.\n");
-            emergency_queue.pop();
-        }
-
-        // Landing
-        // TODO: DEFINE CONDITIONS
-        else if (!landing_queue.empty() && !(!departure_queue.empty() && ((now.tv_sec - departure_queue.front().rt.tv_sec) >= 10 * sleep_time))
-                 || landing_queue.size() > departure_queue.size() // ******* Prevent landing starvation by disallowing existence of a longer landing queue than departure queue ********
-                )
-        {
             plane p = landing_queue.front();
-            printf("Plane %d is notifying the tower to land. \n", p.id);
-            landing_queue.pop();
-            landing_queue_strs.pop();
+            printf("Emergency landing for plane %lu. \n", p.id);
+            emergency_queue.pop();
             pthread_cond_signal(&pcond_landing);
         }
 
-        // Departing
-        // TODO: DEFINE CONDITIONS
+            // Landing
+        else if (!landing_queue.empty()                                                                                                // No more planes is waiting to land.
+                 && departure_queue.size() < 5                                                                                     // 5 planes or more lined up to take off.
+                 && !(!departure_queue.empty() && ((now.tv_sec - departure_queue.front().request_time.tv_sec) >= 10 * sleep_time)) // Max waiting time.
+                 || landing_queue.size() > landing_queue.size()                                                                        // Prevents landing starvation
+                )
+        {
+            plane p = landing_queue.front();
+            printf("Plane %lu is landing. \n", p.id);
+            landing_queue.pop();
+            landing_queue_str.pop();
+            pthread_cond_signal(&pcond_landing);
+        }
+
+            // Departing
         else if (!departure_queue.empty())
         {
             plane p = departure_queue.front();
-            printf("Plane %d is notifying the tower to depart. \n", p.id);
+            printf("Plane %lu is departing. \n", p.id);
             departure_queue.pop();
-            departure_queue_strs.pop();
+            departure_queue_str.pop();
             pthread_cond_signal(&pcond_departure);
         }
 
@@ -183,59 +248,48 @@ void *action(void *act)
     pthread_exit(NULL);
 }
 
+// Landing thread function.
 void *landing(void *id)
 {
     plane p;
-    p.id = (planeid_t)id;
-    gettimeofday(&(p.rt), NULL);
-    p.status = 'L';
+    p.id = (plane_id_t)id;
+    p.status = LANDING;
+    gettimeofday(&(p.request_time), NULL);
+
     pthread_mutex_lock(&lock);
-    //printf("I locked for land: %d\n\n", p.id);
-    //printf("Pushing to queue %d \n", p.id);
     landing_queue.push(p);
-    landing_queue_strs.push(p.id);
-    //  printf("Pushed to queue to land %d --  \n\n", p.id);//, lq.back().id);
+    landing_queue_str.push(p.id);
     if ((now.tv_sec - init.tv_sec) >= order)
+    {
         print_queues();
+    }
 
     pthread_cond_wait(&pcond_landing, &lock);
-    gettimeofday(&(p.rnt), NULL);
-    //printf("here\n");
-    log_print(p);
-
+    gettimeofday(&(p.runway_time), NULL);
+    log_plane(p);
     pthread_mutex_unlock(&lock);
-    // pthread_cond_init(&(p.pcond), NULL);
-    //pthread_cond_wait(&(p.pcond), &plock);
-    //printf("Eheeey: %ld\n\n", p.id);
-    //pthread_cond_destroy(&(p.pcond));
-
     pthread_exit(NULL);
 }
 
+// Departure thread function.
 void *departing(void *id)
 {
     plane p;
-    p.id = (planeid_t)id;
-    gettimeofday(&(p.rt), NULL);
-    p.status = 'D';
+    p.id = (plane_id_t)id;
+    p.status = DEPARTING;
+    gettimeofday(&(p.request_time), NULL);
+
     pthread_mutex_lock(&lock);
-    if (tdelta >= order)
+    if ((now.tv_sec - init.tv_sec) >= order)
+    {
         print_queues();
-    //printf("I locked depart: %d\n\n", p.id);
+    }
     departure_queue.push(p);
-    departure_queue_strs.push(p.id);
-    //printf("Pushed to queue depart  %d --  \n\n", p.id);//lq.back().id);
-    //cout << dq_strs << "\n";
+    departure_queue_str.push(p.id);
 
     pthread_cond_wait(&pcond_departure, &lock);
-    gettimeofday(&(p.rnt), NULL);
-    //  printf("there\n");
-    log_print(p);
-    //  printf("Pushing to queue %d \n\n", p.id);
-    //pthread_cond_init(&(p.pcond), NULL);
-    //pthread_cond_wait(&(p.pcond), &plock);
-    //printf("Alooha: %ld\n\n", p.id);
-    //pthread_cond_destroy(&(p.pcond));
+    gettimeofday(&(p.runway_time), NULL);
+    log_plane(p);
     pthread_mutex_unlock(&lock);
     pthread_exit(NULL);
 }
@@ -246,42 +300,6 @@ void destroy_threads()
     pthread_mutex_destroy(&lock);
     pthread_cond_destroy(&pcond_landing);
     pthread_cond_destroy(&pcond_departure);
-}
-
-// Prints plane id's in landing and departure queues.
-void print_queues()
-{
-    printf("\nLanding Queue: ");
-    for (int i = 0; i < landing_queue.size(); i++)
-    {
-        planeid_t id = landing_queue_strs.front();
-        printf("%d,", id);
-        landing_queue_strs.pop();
-        landing_queue_strs.push(id);
-    }
-
-    printf("\nDeparture Queue: ");
-    for (int i = 0; i < departure_queue.size(); i++)
-    {
-        planeid_t id = departure_queue_strs.front();
-        printf("%d,", id);
-        departure_queue_strs.pop();
-        departure_queue_strs.push(id);
-    }
-    printf("\n");
-}
-
-inline void log_title()
-{
-    printf("%20s %20s %20s %20s %20s\n%s\n", "PlaneID", "Status",
-           "Request Time", "Runway Time", "Turnaround Time",
-           "---------------------------------------------------------------------------------------------------------------------------");
-}
-
-inline void log_print(plane p)
-{
-    printf("%20d %20c %20d %20d %20d\n", p.id, p.status, p.rt.tv_sec - init.tv_sec,
-                                        p.rnt.tv_sec - init.tv_sec, p.rnt.tv_sec - p.rt.tv_sec);
 }
 
 /******************************************************************************
