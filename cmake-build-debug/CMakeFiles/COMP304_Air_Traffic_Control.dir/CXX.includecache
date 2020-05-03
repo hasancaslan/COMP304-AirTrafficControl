@@ -13,8 +13,18 @@ stdio.h
 -
 stdlib.h
 -
+cstdio
+-
+string.h
+-
+stdint.h
+-
 pthread.h
 -
 queue
+-
+time.h
+-
+sys/time.h
 -
 
