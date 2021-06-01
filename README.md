@@ -1,4 +1,4 @@
-# Project 2
+# Air Traffic Control
 ## Hasan Can Aslan - 60453
 
 ### I've implemented all parts of the project. 
